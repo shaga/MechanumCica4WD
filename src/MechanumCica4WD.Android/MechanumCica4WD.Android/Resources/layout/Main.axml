@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent" >
+  <LinearLayout android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="8">
+    <LinearLayout android:orientation="horizontal"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:gravity="center">
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="front batt:" />
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/text_front_battery"
+                android:text="----" />
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="mV" />
+    </LinearLayout>
+    <TextView android:id="@+id/text_status"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:layout_weight="1"
+              android:gravity="center"
+              android:text="connecting"/>
+    <LinearLayout android:orientation="horizontal"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:layout_weight="1"
+                  android:gravity="center">
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="back batt:" />
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/text_rear_battery"
+                android:text="----" />
+      <TextView android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="mV" />
+    
+    </LinearLayout>
+  </LinearLayout>
+  <mechanumcica4wd.android.views.controls.StickControllerView
+    android:id="@+id/stick_controller"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_weight="1" />
+</LinearLayout>

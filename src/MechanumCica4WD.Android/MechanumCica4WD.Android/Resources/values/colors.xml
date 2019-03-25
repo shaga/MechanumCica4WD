@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+  <color name="primary">#ffffff</color>
+  <color name="primaryDark">#3366cc</color>
+  <color name="accent">#cccccc</color>
+  <color name="window_background">#3399ff</color>
+  <color name="toolbar_background">#3399ff</color>
+</resources>
