@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -60,6 +61,10 @@ namespace MechanumCica4WD.Android.Models
 
         private bool _rearIsConnected;
 
+        private bool _frontIsConnecting;
+
+        private bool _rearIsConnecting;
+
         private BluetoothGatt _frontGatt;
 
         private BluetoothGatt _rearGatt;
@@ -87,7 +92,9 @@ namespace MechanumCica4WD.Android.Models
 
         private BluetoothAdapter BluetoothAdapter => BluetoothManager?.Adapter;
 
-        public bool IsConnceted => _frontIsConnected && _rearIsConnected;
+        public bool IsConnected => _frontIsConnected && _rearIsConnected;
+
+        public bool IsConnecting => _frontIsConnecting && _rearIsConnecting;
 
         public event EventHandler<bool> ConnectionStatusChanged;
 
@@ -101,59 +108,88 @@ namespace MechanumCica4WD.Android.Models
 
         public void Connect()
         {
-            _frontGatt = ConnectBcore(FrontBcoreAddress);
+            if (!_frontIsConnected)
+            {
+                ConnectBcore(FrontBcoreAddress, ref _frontGatt, ref _frontIsConnecting);
+            }
+
+            if (!_rearIsConnected)
+            {
+                ConnectBcore(RearBcoreAddress, ref _rearGatt, ref _rearIsConnecting);
+            }
+        }
+
+        public void Disconnect()
+        {
+            if (IsConnected)
+            {
+                _handler.RemoveCallbacks(ReadBattery);
+            }
+
+            if (_frontIsConnected)
+            {
+                _frontGatt.Disconnect();
+                _frontIsConnected = false;
+            }
+
+            if (_rearIsConnected)
+            {
+                _rearGatt.Disconnect();
+                _rearIsConnected = false;
+            }
         }
 
         public override void OnConnectionStateChange(BluetoothGatt gatt, GattStatus status, ProfileState newState)
         {
             base.OnConnectionStateChange(gatt, status, newState);
 
-            var before = IsConnceted;
+            var before = IsConnected;
 
-            if (GattIsFront(gatt))
+            switch (newState)
             {
-                switch (newState)
-                {
-                    case ProfileState.Connected:
-                        gatt.DiscoverServices();
-                        break;
-                    case ProfileState.Disconnected:
+                // bCoreと接続
+                case ProfileState.Connected:
+                    // サービス検索
+                    gatt.DiscoverServices();
+                    break;
+                // bCoreと切断
+                case ProfileState.Disconnected:
+                    if (GattIsFront(gatt))
+                    {
+                        // 前bCoreと切断
                         _frontIsConnected = false;
+
                         if (_rearIsConnected)
                         {
+                            // 後bCoreが接続中なら後ろのモーターを停止
                             WriteMotorData(false, 0, 0x80);
                             WriteMotorData(false, 1, 0x80);
                             _bl = 128;
                             _br = 128;
                         }
-                        if (_frontGatt == null) ConnectBcore(FrontBcoreAddress);
-                        else _frontGatt.Connect();
-                        break;
-                }
-            }
-            else if (GattIsRear(gatt))
-            {
-                switch (newState)
-                {
-                    case ProfileState.Connected:
-                        gatt.DiscoverServices();
-                        break;
-                    case ProfileState.Disconnected:
+
+                        ConnectBcore(FrontBcoreAddress, ref _frontGatt, ref _frontIsConnecting);
+                    }
+                    else if (GattIsRear(gatt))
+                    {
+                        // 後bCoreと切断
                         _rearIsConnected = false;
+
                         if (_frontIsConnected)
                         {
+                            // 前bCoreが接続中なら前のモーターを停止
                             WriteMotorData(true, 0, 0x80);
                             WriteMotorData(true, 1, 0x80);
                             _fr = 128;
                             _fl = 128;
                         }
-                        if (_rearGatt == null) ConnectBcore(RearBcoreAddress);
-                        else _rearGatt.Connect();
-                        break;
-                }
+
+                        ConnectBcore(RearBcoreAddress, ref _rearGatt, ref _rearIsConnecting);
+                    }
+                    break;
             }
 
-            if (!IsConnceted && before)
+            if (!IsConnected && before)
             {
                 ConnectionStatusChanged?.Invoke(this, false);
                 if (_readBatteryType == EBcoreType.Front) _handler.RemoveCallbacks(ReadBattery);
@@ -172,19 +208,19 @@ namespace MechanumCica4WD.Android.Models
             if (GattIsFront(gatt))
             {
                 _frontIsConnected = true;
+                _frontIsConnecting = false;
                 _frontMotor = service.GetCharacteristic(MotorPwm);
                 _frontBattery = service.GetCharacteristic(BatteryVol);
-
-                if (_rearGatt == null) _rearGatt = ConnectBcore(RearBcoreAddress);
             }
             else if (GattIsRear(gatt))
             {
                 _rearIsConnected = true;
+                _rearIsConnecting = false;
                 _rearMotor = service.GetCharacteristic(MotorPwm);
                 _rearBattery = service.GetCharacteristic(BatteryVol);
             }
 
-            if (!IsConnceted) return;
+            if (!IsConnected) return;
 
             ConnectionStatusChanged?.Invoke(this, true);
             _readBatteryType = EBcoreType.Front;
@@ -215,7 +251,7 @@ namespace MechanumCica4WD.Android.Models
 
         public async void SetMotorSpeed(float fb, float lr, float ro, bool isForce = false)
         {
-            if (!IsConnceted) return;
+            if (!IsConnected) return;
 
             var now = DateTime.Now;
 
@@ -259,10 +295,22 @@ namespace MechanumCica4WD.Android.Models
             _lastControllerUpdate = now;
         }
 
-        private BluetoothGatt ConnectBcore(string address)
+        private void ConnectBcore(string address, ref BluetoothGatt gatt, ref bool isConnecting)
         {
-            var device = BluetoothAdapter.GetRemoteDevice(address);
-            return device.ConnectGatt(_context, true, this);
+            if (isConnecting) return;
+
+            isConnecting = true;
+
+            if (gatt == null)
+            {
+                var device = BluetoothAdapter.GetRemoteDevice(address);
+                gatt = device.ConnectGatt(_context, true, this);
+            }
+            else
+            {
+                gatt.Connect();
+            }
+
         }
 
         private int GetMotorPower(float src, bool isInvert = false)

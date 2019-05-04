@@ -14,7 +14,7 @@ using Thread = Java.Lang.Thread;
 
 namespace MechanumCica4WD.Android
 {
-    [Activity(Label = "MechanumCica4WD.Android", MainLauncher = true, ScreenOrientation = ScreenOrientation.Landscape)]
+    [Activity(Label = "メカナム鹿四駆", MainLauncher = true, ScreenOrientation = ScreenOrientation.Landscape, Icon= "@mipmap/app_icon")]
     public class MainActivity : AppCompatActivity
     {
         #region field
@@ -67,14 +67,23 @@ namespace MechanumCica4WD.Android
         protected override void OnResume()
         {
             base.OnResume();
+        }
 
-            Log.Debug("Cica4WD", "OnResume/hoge");
+        protected override void OnPause()
+        {
+            base.OnPause();
         }
 
         protected override void OnStop()
         {
             base.OnStop();
 
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            _bcoreManager.Disconnect();
         }
 
         public override bool OnGenericMotionEvent(MotionEvent e)
@@ -131,6 +140,8 @@ namespace MechanumCica4WD.Android
             _textStatus = FindViewById<TextView>(Resource.Id.text_status);
             _textFrontBattery = FindViewById<TextView>(Resource.Id.text_front_battery);
             _textRearBattery = FindViewById<TextView>(Resource.Id.text_rear_battery);
+
+            _textStatus.Click += (s, e) => { };
         }
 
         private void InitBcore()
